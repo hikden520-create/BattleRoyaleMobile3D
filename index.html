@@ -1,0 +1,118 @@
+
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Battle Royale Mobile</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#101820;color:white;font-family:Arial;text-align:center;overflow:hidden}
+header{padding:10px;background:#182b32;font-size:20px;font-weight:bold}
+#info{display:flex;justify-content:space-around;padding:8px;font-size:14px}
+canvas{display:block;width:100%;height:65vh;background:#426b42;touch-action:none}
+.controls{display:flex;justify-content:space-around;align-items:center;padding:12px}
+button{background:#e7a52b;color:#171717;border:0;border-radius:12px;padding:15px;font-weight:bold;font-size:16px;touch-action:none}
+#move{display:grid;grid-template-columns:55px 55px 55px;gap:4px}
+#move button{padding:12px 4px}
+#fire{background:#e84949;color:white;padding:24px;border-radius:50%}
+#msg{color:#ffd76b;padding:4px}
+</style>
+</head>
+<body>
+<header>⚔️ BATTLE ROYALE</header>
+<div id="info">
+<span>❤️ الصحة: <b id="hp">100</b></span>
+<span>☠️ الأعداء: <b id="left">8</b></span>
+<span>🏆 <b id="score">0</b></span>
+</div>
+<canvas id="game"></canvas>
+<div id="msg">تحرك واهزم الأعداء وابقَ داخل المنطقة الآمنة!</div>
+<div class="controls">
+<div id="move">
+<span></span><button data-m="up">▲</button><span></span>
+<button data-m="left">◀</button><button data-m="down">▼</button><button data-m="right">▶</button>
+</div>
+<button id="fire">إطلاق 🔫</button>
+</div>
+<button onclick="restart()">🔄 إعادة اللعب</button>
+<script>
+const c=document.getElementById('game'),ctx=c.getContext('2d');
+let W,H,p,bots,bullets,zone,score,gameOver,keys={},last=0;
+function resize(){const r=c.getBoundingClientRect();W=c.width=r.width;H=c.height=r.height;if(p){p.x=Math.min(p.x,W);p.y=Math.min(p.y,H)}}
+window.addEventListener('resize',resize);
+function restart(){
+resize();score=0;gameOver=false;
+p={x:W/2,y:H/2,hp:100,r:11,s:3};
+bots=Array.from({length:8},(_,i)=>({x:30+Math.random()*(W-60),y:30+Math.random()*(H-60),hp:2,r:10,wait:Math.random()*100}));
+bullets=[];zone={r:Math.min(W,H)*.47};
+document.getElementById('msg').textContent='قاتل الأعداء وابقَ داخل المنطقة الآمنة!';
+}
+document.querySelectorAll('[data-m]').forEach(b=>{
+const k=b.dataset.m;
+b.addEventListener('pointerdown',e=>{e.preventDefault();keys[k]=true});
+['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,()=>keys[k]=false));
+});
+let firing=false;
+const fire=document.getElementById('fire');
+fire.addEventListener('pointerdown',e=>{e.preventDefault();firing=true});
+['pointerup','pointerleave','pointercancel'].forEach(ev=>fire.addEventListener(ev,()=>firing=false));
+function shoot(){
+if(!bots.length||gameOver)return;
+let t=bots.reduce((a,b)=>Math.hypot(b.x-p.x,b.y-p.y)<Math.hypot(a.x-p.x,a.y-p.y)?b:a);
+let dx=t.x-p.x,dy=t.y-p.y,d=Math.hypot(dx,dy)||1;
+bullets.push({x:p.x,y:p.y,vx:dx/d*6,vy:dy/d*6});
+}
+function draw(){
+ctx.clearRect(0,0,W,H);
+ctx.fillStyle='#426b42';ctx.fillRect(0,0,W,H);
+ctx.strokeStyle='#527b50';ctx.lineWidth=1;
+for(let x=0;x<W;x+=35){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}
+for(let y=0;y<H;y+=35){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}
+ctx.beginPath();ctx.arc(W/2,H/2,zone.r,0,Math.PI*2);
+ctx.strokeStyle='#70dfff';ctx.lineWidth=3;ctx.stroke();
+bots.forEach(b=>{
+ctx.fillStyle='#ed5555';ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,7);ctx.fill();
+ctx.fillStyle='white';ctx.fillRect(b.x-10,b.y-17,20,3);
+});
+bullets.forEach(b=>{ctx.fillStyle='#ffe36b';ctx.beginPath();ctx.arc(b.x,b.y,4,0,7);ctx.fill()});
+ctx.fillStyle='#42c9ff';ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.fill();
+ctx.fillStyle='white';ctx.fillRect(p.x-8,p.y-17,16,3);
+}
+function loop(time){
+if(!last)last=time;
+last=time;
+if(!gameOver){
+let dx=(keys.right?1:0)-(keys.left?1:0);
+let dy=(keys.down?1:0)-(keys.up?1:0);
+let d=Math.hypot(dx,dy)||1;
+p.x=Math.max(12,Math.min(W-12,p.x+dx/d*p.s));
+p.y=Math.max(12,Math.min(H-12,p.y+dy/d*p.s));
+if(firing&&time-(loop.lastShot||0)>350){shoot();loop.lastShot=time}
+bots.forEach(b=>{
+let vx=p.x-b.x,vy=p.y-b.y,dist=Math.hypot(vx,vy)||1;
+b.x+=vx/dist*.55;b.y+=vy/dist*.55;
+if(dist<22&&Math.random()<.025)p.hp-=3;
+});
+bullets.forEach(b=>{b.x+=b.vx;b.y+=b.vy});
+bullets=bullets.filter(b=>b.x>0&&b.x<W&&b.y>0&&b.y<H);
+bullets.forEach(b=>bots.forEach(t=>{
+if(Math.hypot(b.x-t.x,b.y-t.y)<t.r+4&&t.hp>0){t.hp=0;b.x=-100;score++}
+}));
+bots=bots.filter(b=>b.hp>0);
+zone.r=Math.max(35,zone.r-.012);
+if(Math.hypot(p.x-W/2,p.y-H/2)>zone.r)p.hp-=.08;
+if(p.hp<=0||bots.length===0){
+gameOver=true;
+document.getElementById('msg').textContent=bots.length===0?'🏆 فزت بالمعركة!':'💀 انتهت اللعبة! اضغط إعادة اللعب';
+}
+}
+document.getElementById('hp').textContent=Math.max(0,Math.ceil(p.hp));
+document.getElementById('left').textContent=bots.length;
+document.getElementById('score').textContent=score;
+draw();requestAnimationFrame(loop);
+}
+restart();requestAnimationFrame(loop);
+</script>
+</body>
+</html>
