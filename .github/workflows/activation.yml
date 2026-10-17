@@ -3,10 +3,18 @@ name: Request Unity Activation File
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
 
 jobs:
   activation:
+    name: Request Unity Activation
     runs-on: ubuntu-latest
+
     steps:
       - name: Request activation file
         id: activation
@@ -17,3 +25,4 @@ jobs:
         with:
           name: Unity-Activation-File
           path: ${{ steps.activation.outputs.filePath }}
+          if-no-files-found: error
